@@ -4,3 +4,9 @@
 !.dev.vars.example
 .env*
 !.env.example
+node_modules
+dist
+.dev.vars
+.wrangler
+.DS_Store
+*.log

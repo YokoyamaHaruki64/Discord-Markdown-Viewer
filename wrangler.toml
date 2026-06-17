@@ -1,0 +1,3 @@
+name = "md-viewer-worker"
+main = "worker/index.js"
+compatibility_date = "2026-01-01"

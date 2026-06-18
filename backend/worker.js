@@ -53,7 +53,14 @@ export default {
 
     if (!attachment) {
       console.log("no markdown attachment", message.attachments)
-      return new Response("no markdown attachment", { status: 404 })
+       return Response.json(
+        message.attachments,
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*"
+          }
+        }
+      )
     }
 
     // md取得

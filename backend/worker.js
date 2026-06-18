@@ -115,7 +115,12 @@ export default {
       overflow-x: auto;
       border-radius: 6px;
     }
-
+      
+    pre.hljs {
+      background: #f6f8fa; /* GitHubの薄グレー */
+      border: 1px solid #d0d7de;
+      padding: 12px;
+    }
     h1,h2,h3 {
       border-bottom: 1px solid #ddd;
     }

@@ -27,19 +27,34 @@ export default {
     }
 
     // Discord API取得
-    const discordRes = await fetch(
-      `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
-      {
-        headers: {
-          Authorization: `Bot ${env.DISCORD_TOKEN}`
-        }
+      const discordRes = await fetch(
+    `https://discord.com/api/v10/channels/${channelId}/messages?limit=5`,
+    {
+      headers: {
+        Authorization: `Bot ${env.DISCORD_TOKEN}`
       }
+    }
     )
+    //const discordRes = await fetch(
+    //  `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
+    //  {
+    //    headers: {
+    //      Authorization: `Bot ${env.DISCORD_TOKEN}`
+    //    }
+    //  }
+    //)
 
     if (!discordRes.ok) {
       console.log("failed to fetch message", discordRes.status, await discordRes.text())
       return new Response("failed to fetch message", { status: 500 })
     }
+
+    return new Response((await discordRes.json()), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*"
+      }
+    })
 
     const message = await discordRes.json()
 

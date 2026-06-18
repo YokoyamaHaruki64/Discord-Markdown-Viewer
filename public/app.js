@@ -6,6 +6,7 @@ const parts = location.pathname.split("/")
 // /view/:guild/:channel/:message の形式であることを確認
 if (parts.length < 5 || parts[1] !== "view") {
   document.body.innerHTML = "invalid url"
+  console.log("invalid url", location.pathname)
   throw new Error("invalid url")
 }
 

@@ -20,6 +20,7 @@ export default {
 
     // 署名が無効な場合は401 Unauthorizedを返す
     if (!isValid) {
+      console.log("invalid request signature", { signature, timestamp })
       return new Response("Bad request signature", {
         status: 401,
       });
@@ -45,6 +46,7 @@ export default {
       const messageId = interaction.data.target_id;
       
       if (!messageId) {
+        console.log("message id is missing in interaction", interaction)
         return Response.json({
           type: 4,
           data: {

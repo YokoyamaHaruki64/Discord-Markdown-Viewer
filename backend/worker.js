@@ -13,7 +13,8 @@ export default {
 
     // /view/:guild/:channel/:message
     if (parts[1] !== "view") {
-      return new Response("not found", { status: 404 })
+      console.log("invalid url by prefix \"view\"", url.pathname)
+      return new Response("invalid url by prefix \"view\" ", { status: 400 })
     }
 
     const guildId = parts[2]
@@ -21,7 +22,8 @@ export default {
     const messageId = parts[4]
 
     if (!guildId || !channelId || !messageId) {
-      return new Response("bad request", { status: 400 })
+      console.log("invalid url by missing parameters", url.pathname)
+      return new Response("invalid url by missing parameters", { status: 400 })
     }
 
     // Discord API取得
@@ -35,7 +37,8 @@ export default {
     )
 
     if (!discordRes.ok) {
-      return new Response("discord api error", { status: 500 })
+      console.log("failed to fetch message", discordRes.status, await discordRes.text())
+      return new Response("failed to fetch message", { status: 500 })
     }
 
     const message = await discordRes.json()
@@ -43,15 +46,23 @@ export default {
     // 添付ファイル取得（最初の1つ）
     const attachment = message.attachments?.find(a =>
       a.content_type?.includes("text") ||
-      a.filename?.endsWith(".md")
+      a.filename?.endsWith(".md") ||
+      a.filename?.endsWith(".markdown") || 
+      a.filename?.endsWith(".MD")
     )
 
     if (!attachment) {
+      console.log("no markdown attachment", message.attachments)
       return new Response("no markdown attachment", { status: 404 })
     }
 
     // md取得
     const mdText = await fetch(attachment.url).then(r => r.text())
+
+    if(!mdText) {
+      console.log("failed to fetch markdown content", attachment.url)
+      return new Response("failed to fetch markdown content", { status: 500 })
+    }
 
     // markdown → html
     const html = md.render(mdText)

@@ -24,6 +24,22 @@ export default {
       return new Response("bad request", { status: 400 })
     }
 
+    // これらが取得出来ているかLogで確認
+    console.log("guildId:", guildId)
+    console.log("channelId:", channelId)
+    console.log("messageId:", messageId)
+
+    const idhtml = $`<p>Guild ID: ${guildId}</p><p>Channel ID: ${channelId}</p><p>Message ID: ${messageId}</p>`
+
+    // ロゴとIDを表示するだけのページ
+    return new Response( idhtml, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "Access-Control-Allow-Origin": "*"
+      }
+    })
+  
+
     // Discord API取得
     const discordRes = await fetch(
       `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,

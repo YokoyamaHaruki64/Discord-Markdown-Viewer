@@ -22,16 +22,17 @@ const md = new MarkdownIt({
   }
 })
 
+const CHACHE_TTL = 60 * 60 * 24 * 2 // キャッシュの有効期限(2日)
+
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url)
     const parts = url.pathname.split("/")
 
-
     // /view/:guild/:channel/:message
     if (parts[1] !== "view") {
-      console.log("invalid url by prefix \"view\"", url.pathname)
-      return new Response("invalid url by prefix \"view\" ", { status: 400 })
+      console.log("invalid url by prefix", url.pathname)
+      return new Response("invalid url", { status: 400 })
     }
 
     const guildId = parts[2]
@@ -40,8 +41,15 @@ export default {
 
     if (!guildId || !channelId || !messageId) {
       console.log("invalid url by missing parameters", url.pathname)
-      return new Response("invalid url by missing parameters", { status: 400 })
+      return new Response("invalid url", { status: 400 })
     }
+
+    // キャッシュ設定
+    const cache = caches.default
+    const cacheKey = new Request(url.origin + url.pathname)
+
+    const cached = await cache.match(cacheKey)
+    if (cached) return cached
 
     // Discord API取得
     const discordRes = await fetch(
@@ -62,19 +70,17 @@ export default {
 
     // 添付ファイル取得（最初の1つ）
     const attachment = message.attachments?.find(a =>
-      a.content_type?.includes("text") ||
-      a.filename?.endsWith(".md") ||
+      a.content_type?.includes("text")  ||
+      a.filename?.endsWith(".md")       ||
       a.filename?.endsWith(".markdown") || 
-      a.filename?.endsWith(".MD")
+      a.filename?.endsWith(".MD")       ||
+      a.filename?.endsWith(".MARKDOWN") ||
+      a.filename?.endsWith(".Md")       
     )
 
     if (!attachment) {
       console.log("no markdown attachment", message.attachments)
-       return Response.json(message, {
-        headers: {
-          headers,
-        }
-      })
+       return new Response("no markdown attachment found in the message", { status: 404 })
     }
 
     // md取得
@@ -87,9 +93,8 @@ export default {
 
     // markdown → html
     const html = md.render(mdText)
-
     
-    return new Response(
+    const response = new Response(
     `<!doctype html>
     <html>
     <head>
@@ -135,10 +140,16 @@ export default {
       {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": `public, max-age=${CHACHE_TTL}`,
           "access-control-allow-origin": "*",
         },
         
       }
     )
+
+    // キャッシュに保存
+    ctx.waitUntil(cache.put(cacheKey, response.clone()))
+
+    return response
   }
 }

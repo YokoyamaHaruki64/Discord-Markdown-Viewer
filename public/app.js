@@ -1,33 +1,42 @@
-// URLからidを取得して、Discord Markdown ViewerのAPIにリクエストを送信し、結果を表示するコード。キャッシュがある場合はそれを使用し、なければAPIから取得。
+const CACHE_TTL = 1000 * 60 * 60 * 24 * 2 // 2日
 
-// URLのパスを分割
 const parts = location.pathname.split("/")
 
-// /view/:guild/:channel/:message の形式であることを確認
+// URLの形式が/view/:guildId/:channelId/:messageIdでない場合はエラー
 if (parts.length < 5 || parts[1] !== "view") {
   document.body.innerHTML = "invalid url"
   console.log("invalid url", location.pathname)
   throw new Error("invalid url")
 }
 
-// guildId, channelId, messageIdを取得
 const guildId = parts[2]
 const channelId = parts[3]
 const messageId = parts[4]
 
-// キャッシュキーを生成
 const cacheKey = `${guildId}:${channelId}:${messageId}`
 
 async function load() {
-  // キャッシュがある場合はそれを使用
-  const cached = localStorage.getItem(cacheKey)
+  const cachedRaw = localStorage.getItem(cacheKey)
 
-  if (cached) {
-    document.body.innerHTML = cached
-    return
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw)
+
+      const isValid = Date.now() - cached.timestamp < CACHE_TTL
+
+      // キャッシュが有効ならキャッシュを返して終了
+      if (isValid) {
+        document.body.innerHTML = cached.html
+        return
+      }
+
+    } catch (e) {
+      // 壊れてたら無視
+      localStorage.removeItem(cacheKey)
+    }
   }
 
-  // キャッシュがない場合はAPIから取得
+  // キャッシュがないか無効な場合はバックエンドにリクエスト
   const res = await fetch(
     `https://discord-markdown-viewer.tartnivo39820.workers.dev/view/${guildId}/${channelId}/${messageId}`
   )
@@ -35,7 +44,14 @@ async function load() {
   const html = await res.text()
 
   document.body.innerHTML = html
-  localStorage.setItem(cacheKey, html)
+
+  localStorage.setItem(
+    cacheKey,
+    JSON.stringify({
+      html,
+      timestamp: Date.now()
+    })
+  )
 }
 
 load()

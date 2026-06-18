@@ -1,37 +1,42 @@
+const CACHE_TTL = 60 * 60 * 24 * 2 // 2日
+
+// URLをそのままキャッシュキーにする。
+function getCacheKey(url) {
+  return new Request(url.toString(), { method: "GET" })
+}
 import MarkdownIt from "markdown-it"
 import hljs from "highlight.js"
 
 // MarkdownItの設定
 const escapeHtml = MarkdownIt().utils.escapeHtml
+const md = new MarkdownIt(
+  { 
+    html: false,
+    linkify: true,
+    highlight: (str, lang) => {
+      if (lang && hljs.getLanguage(lang)) {
+        try { 
+          return <pre class="hljs"><code>${
+            hljs.highlight(str, { language: lang }).value 
+            }</code></pre> 
+          }catch (e) { 
+            console.warn("highlight error:", e) 
+          } 
+        } 
 
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  highlight: (str, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return `<pre class="hljs"><code>${
-          hljs.highlight(str, { language: lang }).value
-        }</code></pre>`
-      } catch (e) {
-        console.warn("highlight error:", e)
-      }
-    }
+        return <pre class="hljs"><code>${escapeHtml(str)}</code></pre> 
+      } 
+  })
 
-    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`
-  }
-})
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url)
     const parts = url.pathname.split("/")
 
-
-    // /view/:guild/:channel/:message
-    if (parts[1] !== "view") {
-      console.log("invalid url by prefix \"view\"", url.pathname)
-      return new Response("invalid url by prefix \"view\" ", { status: 400 })
+    // URLの形式が/view/:guildId/:channelId/:messageIdでない場合はエラー
+    if (parts.length < 5 || parts[1] !== "view") {
+      return new Response("invalid url", { status: 400 })
     }
 
     const guildId = parts[2]
@@ -39,11 +44,19 @@ export default {
     const messageId = parts[4]
 
     if (!guildId || !channelId || !messageId) {
-      console.log("invalid url by missing parameters", url.pathname)
-      return new Response("invalid url by missing parameters", { status: 400 })
+      return new Response("missing params", { status: 400 })
     }
 
-    // Discord API取得
+    const cache = caches.default
+    const cacheKey = getCacheKey(req.url)
+
+    // ====== キャッシュ確認 ======
+    const cached = await cache.match(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // ====== Discord API ======
     const discordRes = await fetch(
       `https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`,
       {
@@ -53,92 +66,95 @@ export default {
       }
     )
 
+    // Discord APIからのレスポンスが正常でない場合はエラー
     if (!discordRes.ok) {
-      console.log("failed to fetch message", discordRes.status, await discordRes.text())
-      return new Response("failed to fetch message", { status: 500 })
+      console.error("discord api error", {
+        status: discordRes.status,
+        statusText: discordRes.statusText,
+        url: discordRes.url
+      })
+      return new Response("failed discord fetch", { status: 500 })
     }
 
     const message = await discordRes.json()
 
-    // 添付ファイル取得（最初の1つ）
     const attachment = message.attachments?.find(a =>
-      a.content_type?.includes("text") ||
-      a.filename?.endsWith(".md") ||
-      a.filename?.endsWith(".markdown") || 
-      a.filename?.endsWith(".MD")
+      a.content_type?.includes("text")  ||
+      a.filename?.endsWith(".md")       ||
+      a.filename?.endsWith(".markdown") ||
+      a.filename?.endsWith(".MD")       ||
+      a.filename?.endsWith(".MARKDOWN") ||
+      a.filename?.endsWith(".Md")       
     )
 
     if (!attachment) {
-      console.log("no markdown attachment", message.attachments)
-       return Response.json(message, {
-        headers: {
-          headers,
-        }
+      console.log("no markdown attachment found in message", { messageId, attachments: message.attachments })
+      return new Response("no markdown attachment found", {
+        headers: { "Content-Type": "application/json" }
       })
     }
 
-    // md取得
+    // ====== Markdownの取得とHTML変換 ======
     const mdText = await fetch(attachment.url).then(r => r.text())
-
-    if(!mdText) {
-      console.log("failed to fetch markdown content", attachment.url)
-      return new Response("failed to fetch markdown content", { status: 500 })
-    }
-
-    // markdown → html
     const html = md.render(mdText)
 
-    
-    return new Response(
-    `<!doctype html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    // ====== HTMLをレスポンスとして返す ======
+    const response = new Response(
+      `<!doctype html>
+      <html>
+      <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.css">
+      <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.css">
 
-    <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 0 16px;
-      line-height: 1.7;
-    }
+      <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 16px;
+        line-height: 1.7;
+      }
 
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
-    }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
+      }
 
-    pre {
-      overflow-x: auto;
-      border-radius: 6px;
-    }
-      
-    pre.hljs {
-      background: #f6f8fa; /* GitHubの薄グレー */
-      border: 1px solid #d0d7de;
-      padding: 12px;
-    }
-    h1,h2,h3 {
-      border-bottom: 1px solid #ddd;
-    }
-    </style>
-    </head>
+      pre {
+        overflow-x: auto;
+        border-radius: 6px;
+      }
 
-    <body>
-    ${html}
-    </body>
-    </html>`,
+      pre.hljs {
+        background: #f6f8fa;
+        border: 1px solid #d0d7de;
+        padding: 12px;
+      }
+
+      h1,h2,h3 {
+        border-bottom: 1px solid #ddd;
+      }
+      </style>
+      </head>
+
+      <body>
+      ${html}
+      </body>
+      </html>`,
       {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
-          "access-control-allow-origin": "*",
-        },
-        
+          "Cache-Control": `public, max-age=${CACHE_TTL}`,
+          "Access-Control-Allow-Origin": "*"
+        }
       }
     )
+
+    // ====== エッジキャッシュ保存 ======
+    ctx.waitUntil(cache.put(cacheKey, response.clone()))
+
+    return response
   }
 }

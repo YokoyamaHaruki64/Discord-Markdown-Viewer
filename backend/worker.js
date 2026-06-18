@@ -2,23 +2,23 @@ import MarkdownIt from "markdown-it"
 import hljs from "highlight.js"
 
 // MarkdownItの設定
+const escapeHtml = MarkdownIt().utils.escapeHtml
+
 const md = new MarkdownIt({
-  html: false,    // HTMLタグを無効化
-  linkify: true,  // URLを自動リンク化
-  // コードブロックのシンタックスハイライトを設定
+  html: false,
+  linkify: true,
   highlight: (str, lang) => {
-    // 言語が指定されていて、かつその言語がhljsでサポートされている場合はハイライトする
     if (lang && hljs.getLanguage(lang)) {
       try {
-        // ハイライトしたHTMLを返す
         return `<pre class="hljs"><code>${
           hljs.highlight(str, { language: lang }).value
         }</code></pre>`
-      } catch (e) {}
+      } catch (e) {
+        console.warn("highlight error:", e)
+      }
     }
 
-    // 言語なし or 不明
-    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
+    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`
   }
 })
 
@@ -115,7 +115,12 @@ export default {
       overflow-x: auto;
       border-radius: 6px;
     }
-
+      
+    pre.hljs {
+      background: #f6f8fa; /* GitHubの薄グレー */
+      border: 1px solid #d0d7de;
+      padding: 12px;
+    }
     h1,h2,h3 {
       border-bottom: 1px solid #ddd;
     }

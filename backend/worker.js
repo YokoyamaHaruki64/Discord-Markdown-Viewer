@@ -27,33 +27,6 @@ export default {
     const url = new URL(req.url)
     const parts = url.pathname.split("/")
 
-    // CORS対応
-    const origin = req.headers.get("Origin");
-    // CORS対応のヘッダーを設定
-    const headers = {
-      "content-type": "text/html; charset=utf-8",
-    };
-    // 許可するオリジンを指定
-    const allowed = env.ALLOWED_ORIGIN;
-
-    // リクエストのオリジンが許可されたオリジンと一致する場合、CORSヘッダーを追加
-    if (origin === allowed) {
-      headers["Access-Control-Allow-Origin"] = allowed;
-      headers["Vary"] = "Origin";
-    }
-
-    // OPTIONS対応
-    if (req.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": allowed,
-          "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          "Access-Control-Max-Age": "86400",
-        },
-      });
-    }
-
 
     // /view/:guild/:channel/:message
     if (parts[1] !== "view") {
@@ -160,7 +133,11 @@ export default {
     </body>
     </html>`,
       {
-        headers,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "access-control-allow-origin": "*",
+        },
+        
       }
     )
   }

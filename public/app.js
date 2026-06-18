@@ -1,33 +1,40 @@
 // URLからidを取得して、Discord Markdown ViewerのAPIにリクエストを送信し、結果を表示するコード。キャッシュがある場合はそれを使用し、なければAPIから取得。
 
-// URLSearchParams : URLのクエリパラメータを簡単に扱うためのWeb API。
-// location.search : 現在のURLのクエリ文字列を取得するプロパティ。
-// get() : 指定したキーに対応する値を取得するメソッド。
-const params = new URLSearchParams(location.search)
-const id = params.get("id")
+// URLのパスを分割
+const parts = location.pathname.split("/")
+
+// /view/:guild/:channel/:message の形式であることを確認
+if (parts.length < 5 || parts[1] !== "view") {
+  document.body.innerHTML = "invalid url"
+  throw new Error("invalid url")
+}
+
+// guildId, channelId, messageIdを取得
+const guildId = parts[2]
+const channelId = parts[3]
+const messageId = parts[4]
+
+// キャッシュキーを生成
+const cacheKey = `${guildId}:${channelId}:${messageId}`
 
 async function load() {
-  // idが存在しない場合はエラーメッセージを表示して終了
-  // ?以降のクエリパラメータにidが含まれていない場合、idはnullとなる
-  if (!id) {
-    document.body.innerHTML = "no id"
-    return
-  }
+  // キャッシュがある場合はそれを使用
+  const cached = localStorage.getItem(cacheKey)
 
-  // localStorageからキャッシュを取得
-  const cached = localStorage.getItem(id)
   if (cached) {
     document.body.innerHTML = cached
     return
   }
 
-  // Discord Markdown ViewerのAPIにリクエストを送信
-  const res = await fetch(`https://discord-markdown-viewer.tartnivo39820.workers.dev/view?id=${id}`)
+  // キャッシュがない場合はAPIから取得
+  const res = await fetch(
+    `https://discord-markdown-viewer.tartnivo39820.workers.dev/view/${guildId}/${channelId}/${messageId}`
+  )
+
   const html = await res.text()
 
-  // 取得したHTMLを表示し、localStorageにキャッシュとして保存
   document.body.innerHTML = html
-  localStorage.setItem(id, html)
+  localStorage.setItem(cacheKey, html)
 }
-// ページが読み込まれたときにload関数を実行
+
 load()

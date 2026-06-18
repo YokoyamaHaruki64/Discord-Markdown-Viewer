@@ -49,12 +49,17 @@ export default {
       return new Response("failed to fetch message", { status: 500 })
     }
 
-    return new Response((await discordRes.json()), {
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        "Access-Control-Allow-Origin": "*"
+    const data = await discordRes.json()
+
+    return new Response(
+      JSON.stringify(data, null, 2),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*"
+        }
       }
-    })
+    )
 
     const message = await discordRes.json()
 

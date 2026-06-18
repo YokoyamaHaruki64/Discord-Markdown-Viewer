@@ -1,9 +1,25 @@
 import MarkdownIt from "markdown-it"
+import hljs from "highlight.js"
 
+// MarkdownItの設定
 const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true
+  html: false,    // HTMLタグを無効化
+  linkify: true,  // URLを自動リンク化
+  // コードブロックのシンタックスハイライトを設定
+  highlight: (str, lang) => {
+    // 言語が指定されていて、かつその言語がhljsでサポートされている場合はハイライトする
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        // ハイライトしたHTMLを返す
+        return `<pre class="hljs"><code>${
+          hljs.highlight(str, { language: lang }).value
+        }</code></pre>`
+      } catch (e) {}
+    }
+
+    // 言語なし or 不明
+    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
+  }
 })
 
 export default {
@@ -73,97 +89,46 @@ export default {
     const html = md.render(mdText)
 
     return new Response(
-      `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Discord Markdown Viewer</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    max-width: 800px;
-    margin: 40px auto;
-    padding: 0 16px;
-    line-height: 1.7;
-    background: #ffffff;
-    color: #24292f;
-  }
+    `<!doctype html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  a {
-    color: #0969da;
-    text-decoration: none;
-  }
+    <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.css">
 
-  a:hover {
-    text-decoration: underline;
-  }
+    <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 16px;
+      line-height: 1.7;
+    }
 
-  h1 {
-    font-size: 2em;
-    border-bottom: 1px solid #d0d7de;
-    padding-bottom: 0.3em;
-  }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
+    }
 
-  h2 {
-    border-bottom: 1px solid #d0d7de;
-    padding-bottom: 0.3em;
-  }
+    pre {
+      overflow-x: auto;
+      border-radius: 6px;
+    }
 
-  h3 {
-    margin-top: 24px;
-  }
+    h1,h2,h3 {
+      border-bottom: 1px solid #ddd;
+    }
+    </style>
+    </head>
 
-  code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-    background: rgba(175, 184, 193, 0.2);
-    padding: 0.2em 0.4em;
-    border-radius: 6px;
-  }
-
-  pre {
-    background: #f6f8fa;
-    padding: 16px;
-    overflow-x: auto;
-    border-radius: 6px;
-    border: 1px solid #d0d7de;
-  }
-
-  pre code {
-    background: transparent;
-    padding: 0;
-  }
-
-  blockquote {
-    margin: 0;
-    padding-left: 1em;
-    color: #57606a;
-    border-left: 0.25em solid #d0d7de;
-  }
-
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-
-  table th, table td {
-    border: 1px solid #d0d7de;
-    padding: 6px 13px;
-  }
-
-  table th {
-    background: #f6f8fa;
-  }
-</style>
-</head>
-<body>
-${html}
-</body>
-</html>`,
+    <body>
+    ${html}
+    </body>
+    </html>`,
       {
         headers: {
-          "content-type": "text/html; charset=utf-8",
-          "Access-Control-Allow-Origin": "*"
+          "content-type": "text/html; charset=utf-8"
         }
       }
     )

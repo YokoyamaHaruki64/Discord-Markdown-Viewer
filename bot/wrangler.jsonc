@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "discord-markdown-bot",
+  "main": "bot.js",
+  "compatibility_date": "2026-06-17",
+  "observability": {
+    "enabled": true
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}

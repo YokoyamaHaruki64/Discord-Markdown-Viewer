@@ -53,14 +53,12 @@ export default {
 
     if (!attachment) {
       console.log("no markdown attachment", message.attachments)
-       return Response.json(
-        message.attachments,
-        {
-          headers: {
-            "Access-Control-Allow-Origin": "*"
-          }
+       return Response.json(message, {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*"
         }
-      )
+      })
     }
 
     // md取得

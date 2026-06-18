@@ -33,24 +33,23 @@ export default {
       return Response.json({ type: 1 });
     }
 
-    // /md コマンドの処理
+    // アプリケーションコマンドの処理
     if (
       interaction.type === 2 &&
+      interaction.data.type === 3 &&
       interaction.data.name === "md"
     ) {
       // メッセージのIDを取得
       const guildId = interaction.guild_id;
       const channelId = interaction.channel_id;
-      // メッセージのIDは、返信先のものから取得
-      const messageId =
-        interaction.message?.message_reference?.message_id;
-
+      const messageId = interaction.data.target_id;
+      
       if (!messageId) {
         return Response.json({
           type: 4,
           data: {
             content:
-              "❌ メッセージへの返信で実行してください",
+              "❌ メッセージIDが取得できませんでした。メッセージを右クリックして「アプリケーションコマンド」から実行してください。",
           },
         });
       }
@@ -66,7 +65,7 @@ export default {
           content: `📄 ${url}`,
           reply: {
             message_reference: {
-              message_id: interaction.message.id
+              message_id: messageId,
             },
           }
         }

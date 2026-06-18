@@ -53,7 +53,13 @@ export default {
     // ====== キャッシュ確認 ======
     const cached = await cache.match(cacheKey)
     if (cached) {
-      return cached
+      const res = new Response(cached.body, cached)
+
+      res.headers.set("Content-Type", "text/html; charset=utf-8")
+      res.headers.set("Access-Control-Allow-Origin", "*")
+      res.headers.set("x-cache", "HIT")
+
+      return res
     }
 
     // ====== Discord API ======
@@ -147,7 +153,8 @@ export default {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": `public, max-age=${CACHE_TTL}`,
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
+          "x-cache": "MISS"
         }
       }
     )
